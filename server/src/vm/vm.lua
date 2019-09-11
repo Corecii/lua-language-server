@@ -166,11 +166,37 @@ function mt:callSetMetaTable(func, values, source)
     values[1]:setMetaTable(values[2])
 end
 
+function mt:requireToPathString(value)
+    local str = value:getLiteral()
+    if type(str) ~= 'string' then
+        if value and value:getSource() and value:getSource():action() == 'get' then
+            --[[
+            local path = {}
+            local current = value
+            while current and current:getSource() and current:getSource():action() == 'get' and current:getSource():getName() do
+                table.insert(path, 1, current:getSource():getName())
+                current = current:getSource():get('parent')
+            end
+            path = table.concat(path, '.')
+            str = path
+            log.debug('Path:',path)
+            --log.debug('non-string require:',value:getSource():get('parent'):getSource():getName(), value:getSource():getName(), table.dump(values))
+            --log.debug('non-string require:',value:getSource():get('parent'):getSource():action(), value:getSource():action(), table.dump(values))
+            --]]
+            -- TODO: support rojo paths
+            str = value:getSource():getName()
+        else
+            return
+        end
+    end
+    return str
+end
+
 function mt:tryRequireOne(strValue, mode)
     if not self.lsp or not self.lsp.workspace then
         return nil
     end
-    local str = strValue:getLiteral()
+    local str = self:requireToPathString(strValue)
     if type(str) == 'string' then
         -- 支持 require 'xxx' 的转到定义
         local strSource = strValue:getSource()
@@ -201,10 +227,7 @@ function mt:callRequire(func, values)
     if not values[1] then
         values[1] = self:createValue('any', self:getDefaultSource())
     end
-    local str = values[1]:getLiteral()
-    if type(str) ~= 'string' then
-        return
-    end
+    local str = self:requireToPathString(values[1])
     local lib = library.library[str]
     if lib then
         local value = libraryBuilder.value(lib)
